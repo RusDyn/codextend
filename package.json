@@ -10,8 +10,8 @@
     "prebuild": "node scripts/generate-icons.mjs",
     "build": "plasmo build",
     "zip": "plasmo package",
-    "lint": "eslint . --max-warnings=0",
-    "test": "vitest --run --passWithNoTests",
+    "lint": "eslint --max-warnings=0 \"src/**/*.{ts,tsx}\" \"tests/**/*.ts\"",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
