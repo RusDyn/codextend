@@ -13,6 +13,7 @@ interface StorageDriver {
 
 const MATCH_SETTINGS_KEY = "matchSettings";
 const PANEL_WIDTH_KEY = "panelWidth";
+const PANEL_CONFIRM_KEY = "panelConfirmAcknowledged";
 
 const fallbackStore = new Map<string, unknown>();
 
@@ -169,11 +170,34 @@ export async function saveMatchSettings(settings: MatchSettings): Promise<void> 
   await driver.set({ [MATCH_SETTINGS_KEY]: { keywords } satisfies MatchSettings });
 }
 
-export async function loadPanelWidth(): Promise<number | undefined> {
-  const snapshot = await driver.get(PANEL_WIDTH_KEY);
-  const width = snapshot[PANEL_WIDTH_KEY];
+export interface PanelPreferences {
+  width?: number;
+  confirmAcknowledged?: boolean;
+}
 
-  return typeof width === "number" && Number.isFinite(width) ? width : undefined;
+export async function loadPanelPreferences(): Promise<PanelPreferences> {
+  const snapshot = await driver.get({
+    [PANEL_WIDTH_KEY]: null,
+    [PANEL_CONFIRM_KEY]: false
+  });
+
+  const width = snapshot[PANEL_WIDTH_KEY];
+  const confirmAcknowledged = snapshot[PANEL_CONFIRM_KEY];
+
+  return {
+    width: typeof width === "number" && Number.isFinite(width) ? width : undefined,
+    confirmAcknowledged: typeof confirmAcknowledged === "boolean" ? confirmAcknowledged : undefined
+  } satisfies PanelPreferences;
+}
+
+export async function loadPanelWidth(): Promise<number | undefined> {
+  const { width } = await loadPanelPreferences();
+  return width;
+}
+
+export async function loadPanelConfirmAcknowledged(): Promise<boolean | undefined> {
+  const { confirmAcknowledged } = await loadPanelPreferences();
+  return confirmAcknowledged;
 }
 
 export async function savePanelWidth(width: number): Promise<void> {
@@ -184,8 +208,12 @@ export async function savePanelWidth(width: number): Promise<void> {
   await driver.set({ [PANEL_WIDTH_KEY]: width });
 }
 
+export async function savePanelConfirmAcknowledged(value: boolean): Promise<void> {
+  await driver.set({ [PANEL_CONFIRM_KEY]: Boolean(value) });
+}
+
 export async function clearPersistedState(): Promise<void> {
-  await driver.remove([MATCH_SETTINGS_KEY, PANEL_WIDTH_KEY]);
+  await driver.remove([MATCH_SETTINGS_KEY, PANEL_WIDTH_KEY, PANEL_CONFIRM_KEY]);
 }
 
 export async function clearAllStorage(): Promise<void> {

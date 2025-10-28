@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { archive, scan, type ArchiveCandidate, type ArchiveFailure, type ArchiveProgress } from "../lib/archive"
+import { savePanelConfirmAcknowledged } from "../lib/storage"
 
 export type MatchStatus = "pending" | "processing" | "archived" | "failed"
 
@@ -27,7 +28,11 @@ interface PanelStore {
   archiving: boolean
   confirmVisible: boolean
   toasts: PanelToast[]
+  panelEnabled: boolean
+  confirmAcknowledged: boolean
   initialize: () => void
+  setPanelEnabled: (enabled: boolean, statusMessage?: string) => void
+  setConfirmAcknowledged: (value: boolean) => void
   scanMatches: () => Promise<void>
   requestArchive: () => void
   cancelArchive: () => void
@@ -62,10 +67,44 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
   archiving: false,
   confirmVisible: false,
   toasts: [],
+  panelEnabled: false,
+  confirmAcknowledged: false,
   initialize() {
-    if (!get().ready) {
+    const { panelEnabled, ready } = get()
+    if (!panelEnabled) {
+      set((state) => ({
+        statusMessage:
+          state.statusMessage || "Waiting for Codex tasks to finish loading before scanning."
+      }))
+      return
+    }
+
+    if (!ready) {
       set({ ready: true, statusMessage: "Ready to scan for nerch tasks." })
     }
+  },
+  setPanelEnabled(enabled, statusMessage) {
+    set((state) => ({
+      panelEnabled: enabled,
+      ready: enabled ? state.ready : false,
+      scanning: enabled ? state.scanning : false,
+      archiving: enabled ? state.archiving : false,
+      matches: enabled ? state.matches : [],
+      confirmVisible: enabled ? state.confirmVisible : false,
+      statusMessage:
+        typeof statusMessage === "string"
+          ? statusMessage
+          : enabled
+          ? state.statusMessage
+          : "Codex tasks not detected. Navigate to the task queue to use the panel."
+    }))
+
+    if (enabled) {
+      get().initialize()
+    }
+  },
+  setConfirmAcknowledged(value) {
+    set({ confirmAcknowledged: value })
   },
   addToast(tone, message) {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -76,8 +115,13 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) }))
   },
   async scanMatches() {
-    const { scanning, archiving } = get()
+    const { scanning, archiving, ready, panelEnabled } = get()
     if (scanning || archiving) {
+      return
+    }
+
+    if (!panelEnabled || !ready) {
+      get().addToast("info", "Waiting for Codex tasks to finish loading.")
       return
     }
 
@@ -124,8 +168,13 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     }
   },
   requestArchive() {
-    const { scanning, archiving, matches } = get()
+    const { scanning, archiving, matches, ready, panelEnabled, confirmAcknowledged } = get()
     if (scanning || archiving) {
+      return
+    }
+
+    if (!panelEnabled || !ready) {
+      get().addToast("info", "Waiting for Codex tasks to finish loading.")
       return
     }
 
@@ -134,7 +183,12 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
       return
     }
 
-    set({ confirmVisible: true })
+    if (!confirmAcknowledged) {
+      set({ confirmVisible: true })
+      return
+    }
+
+    void get().confirmArchive()
   },
   cancelArchive() {
     if (get().archiving) {
@@ -144,14 +198,27 @@ export const usePanelStore = create<PanelStore>((set, get) => ({
     set({ confirmVisible: false })
   },
   async confirmArchive() {
-    const { scanning, archiving, matches } = get()
+    const { scanning, archiving, matches, panelEnabled, ready, confirmAcknowledged } = get()
     if (scanning || archiving) {
+      return
+    }
+
+    if (!panelEnabled || !ready) {
+      set({ confirmVisible: false })
+      get().addToast("info", "Waiting for Codex tasks to finish loading.")
       return
     }
 
     if (matches.length === 0) {
       set({ confirmVisible: false })
       return
+    }
+
+    if (!confirmAcknowledged) {
+      set({ confirmAcknowledged: true })
+      void savePanelConfirmAcknowledged(true).catch((error) => {
+        console.warn("Failed to persist panel confirmation flag", error)
+      })
     }
 
     set({
