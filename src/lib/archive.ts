@@ -49,8 +49,6 @@ export type ArchiveProgressCallback = (progress: ArchiveProgress) => void
 
 const ARCHIVE_CONFIRM_TIMEOUT_MS = 4000
 const ARCHIVE_CONFIRM_INTERVAL_MS = 100
-const TOAST_SUCCESS_SELECTOR = '[data-testid="toast"], [data-testid="toast-success"], [role="status"], [role="alert"]'
-const TOAST_FAILURE_KEYWORDS = ["fail", "error", "unable", "cannot", "could not", "couldn't"]
 
 function isVisible(element: HTMLElement): boolean {
   if (element.hidden || element.getAttribute("aria-hidden") === "true") {
@@ -72,27 +70,6 @@ function normalizeText(value: string | null | undefined): string {
   return value?.trim() ?? ""
 }
 
-function hasArchiveToast(doc: Document | null | undefined): boolean {
-  if (!doc) {
-    return false
-  }
-
-  const toasts = Array.from(doc.querySelectorAll<HTMLElement>(TOAST_SUCCESS_SELECTOR))
-  for (const toast of toasts) {
-    const content = toast.textContent?.toLowerCase() ?? ""
-    if (content.length === 0 || !content.includes("archiv")) {
-      continue
-    }
-
-    const hasFailureKeyword = TOAST_FAILURE_KEYWORDS.some((keyword) => content.includes(keyword))
-    if (!hasFailureKeyword) {
-      return true
-    }
-  }
-
-  return false
-}
-
 function isRowArchived(row: HTMLElement): boolean {
   if (!row.isConnected) {
     return true
@@ -106,16 +83,7 @@ async function confirmArchived(row: HTMLElement): Promise<boolean> {
   try {
     await waitForPredicate(
       () => {
-        if (isRowArchived(row)) {
-          return true
-        }
-
-        const doc = row.ownerDocument ?? document
-        if (hasArchiveToast(doc)) {
-          return true
-        }
-
-        return false
+        return isRowArchived(row)
       },
       {
         timeout: ARCHIVE_CONFIRM_TIMEOUT_MS,
