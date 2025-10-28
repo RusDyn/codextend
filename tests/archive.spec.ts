@@ -179,4 +179,42 @@ describe("archive", () => {
     expect(summary.failed).toHaveLength(0)
     expect(events.at(-1)?.summary).toEqual(summary)
   })
+
+  it("reports attempts starting at one for each task", async () => {
+    const firstTask = createTask({ id: "1", title: "Nerch First Task", tags: ["Community"] })
+    const secondTask = createTask({ id: "2", title: "Nerch Second Task", tags: ["Community"] })
+    document.body.append(firstTask, secondTask)
+
+    const menu = document.createElement("div")
+    menu.setAttribute("role", "menu")
+    document.body.appendChild(menu)
+
+    let currentRow: HTMLElement | null = null
+    vi.spyOn(selectors, "openRowMenu").mockImplementation(async (row) => {
+      currentRow = row
+      return menu
+    })
+
+    vi.spyOn(selectors, "clickArchiveInMenu").mockImplementation(async () => {
+      currentRow?.remove()
+      return true
+    })
+
+    const events: ArchiveProgress[] = []
+    await archive(scan(), (progress) => events.push(progress))
+
+    const attemptEvents = events.filter((event) => event.status === "attempt")
+    const attemptsByTask = new Map<string | undefined, number>()
+
+    for (const event of attemptEvents) {
+      const taskId = event.current?.task.metadata.id
+      if (!attemptsByTask.has(taskId)) {
+        attemptsByTask.set(taskId, event.current?.attempt ?? 0)
+      }
+    }
+
+    expect(attemptEvents).toHaveLength(2)
+    expect(attemptsByTask.get("1")).toBe(1)
+    expect(attemptsByTask.get("2")).toBe(1)
+  })
 })
