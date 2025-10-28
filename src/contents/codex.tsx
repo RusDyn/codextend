@@ -2,6 +2,8 @@ import type { PointerEvent as ReactPointerEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { createRoot, type Root } from "react-dom/client"
 
+import panelStyles from "data-text:../../style.css"
+
 import Panel from "../ui/Panel"
 import { usePanelStore } from "../ui/panelStore"
 import {
@@ -312,6 +314,9 @@ async function mountPanel(): Promise<() => void> {
   ownerDocument.body.append(host)
 
   const shadow = host.attachShadow({ mode: "open" })
+  const style = ownerDocument.createElement("style")
+  style.textContent = panelStyles
+  shadow.append(style)
   const rootContainer = ownerDocument.createElement("div")
   shadow.append(rootContainer)
 
