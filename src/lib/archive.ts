@@ -128,12 +128,21 @@ interface AttemptResult {
   error?: Error
 }
 
-async function attemptArchive(task: ArchiveCandidate): Promise<AttemptResult> {
+type AttemptProgressEmitter = (attempt: number) => void
+
+async function attemptArchive(
+  task: ArchiveCandidate,
+  emitAttemptProgress?: AttemptProgressEmitter
+): Promise<AttemptResult> {
   let attempts = 0
   let lastError: Error | undefined
 
   while (attempts < RETRIES) {
     attempts += 1
+
+    if (attempts > 1) {
+      emitAttemptProgress?.(attempts)
+    }
 
     try {
       smoothScrollIntoView(task.node.row)
@@ -194,18 +203,22 @@ export async function archive(
 
   for (const task of tasks) {
     const statusMessage = `Archiving “${task.title || task.metadata.id || "unknown"}” (${processed + 1}/${total})`
-    emitProgress(onProgress, {
-      status: "attempt",
-      message: statusMessage,
-      total,
-      processed,
-      archived: archivedCount,
-      failed: failures.length,
-      failures: [...failures],
-      current: { task, attempt: processed + 1 }
-    })
+    const emitAttemptProgress: AttemptProgressEmitter = (attempt) => {
+      emitProgress(onProgress, {
+        status: "attempt",
+        message: statusMessage,
+        total,
+        processed,
+        archived: archivedCount,
+        failed: failures.length,
+        failures: [...failures],
+        current: { task, attempt }
+      })
+    }
 
-    const result = await attemptArchive(task)
+    emitAttemptProgress(1)
+
+    const result = await attemptArchive(task, emitAttemptProgress)
 
     processed += 1
 
