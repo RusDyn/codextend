@@ -83,9 +83,12 @@ export async function clickArchiveInMenu(
   options: Partial<WaitForElementOptions> = {}
 ): Promise<boolean> {
   try {
+    const { root: optionRoot, ...waitOptions } = options
+    const searchRoot = optionRoot ?? root ?? document
+
     const archiveAction = await waitFor<HTMLElement>(SELECTORS.archiveAction, {
-      root: root instanceof Document ? root : root.ownerDocument ?? document,
-      ...options
+      root: searchRoot,
+      ...waitOptions
     })
     clickElement(archiveAction)
     return true
