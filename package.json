@@ -35,6 +35,7 @@
     "eslint-plugin-jsx-a11y": "^6.9.0",
     "eslint-plugin-react": "^7.35.0",
     "eslint-plugin-react-hooks": "^4.6.2",
+    "jsdom": "^27.0.1",
     "postcss": "^8.4.41",
     "prettier": "^3.3.3",
     "sharp": "^0.33.4",
