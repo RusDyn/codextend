@@ -31,6 +31,20 @@ After running the dev server, load the unpacked extension from the generated `bu
 
 Tailwind CSS powers the popup UI. Global styles live in [`style.css`](./style.css) and are pulled into the popup entry so all components can use Tailwind utility classes out of the box.
 
+## Customizing Nerch keyword detection
+
+The extension highlights conversations that match a configurable set of keywords defined in [`src/config.ts`](./src/config.ts). By default the list contains the single term `"nerch"`, but you can add or remove terms at runtime by updating the stored settings:
+
+```ts
+import { loadMatchSettings, saveMatchSettings } from "./src/lib/storage";
+
+const settings = await loadMatchSettings();
+settings.keywords = [...settings.keywords, "my new keyword"];
+await saveMatchSettings(settings);
+```
+
+The helper functions automatically normalize keywords so tests in CI (`npm run test`) behave the same way as the extension runtime.
+
 ## Manifest permissions
 
 The extension requests the following Chrome permissions:
