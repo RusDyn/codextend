@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title>Codextend Logo</title>
+  <desc>Rounded square background with stylized chevron nodes representing code extension.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#22d3ee" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#bg)" />
+  <g fill="#ffffff" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+    <path d="M46 44 30 64l16 20" fill="none" />
+    <path d="m82 44 16 20-16 20" fill="none" />
+    <circle cx="64" cy="64" r="16" fill="none" />
+  </g>
+</svg>
