@@ -50,6 +50,7 @@ export type ArchiveProgressCallback = (progress: ArchiveProgress) => void
 const ARCHIVE_CONFIRM_TIMEOUT_MS = 4000
 const ARCHIVE_CONFIRM_INTERVAL_MS = 100
 const TOAST_SUCCESS_SELECTOR = '[data-testid="toast"], [data-testid="toast-success"], [role="status"], [role="alert"]'
+const TOAST_FAILURE_KEYWORDS = ["fail", "error", "unable", "cannot", "could not", "couldn't"]
 
 function isVisible(element: HTMLElement): boolean {
   if (element.hidden || element.getAttribute("aria-hidden") === "true") {
@@ -76,17 +77,20 @@ function hasArchiveToast(doc: Document | null | undefined): boolean {
     return false
   }
 
-  const toast = doc.querySelector<HTMLElement>(TOAST_SUCCESS_SELECTOR)
-  if (!toast) {
-    return false
+  const toasts = Array.from(doc.querySelectorAll<HTMLElement>(TOAST_SUCCESS_SELECTOR))
+  for (const toast of toasts) {
+    const content = toast.textContent?.toLowerCase() ?? ""
+    if (content.length === 0 || !content.includes("archiv")) {
+      continue
+    }
+
+    const hasFailureKeyword = TOAST_FAILURE_KEYWORDS.some((keyword) => content.includes(keyword))
+    if (!hasFailureKeyword) {
+      return true
+    }
   }
 
-  const content = toast.textContent?.toLowerCase() ?? ""
-  if (content.length === 0) {
-    return false
-  }
-
-  return content.includes("archiv")
+  return false
 }
 
 function isRowArchived(row: HTMLElement): boolean {
