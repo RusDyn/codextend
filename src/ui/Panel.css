@@ -1,0 +1,19 @@
+:host {
+  all: initial;
+  box-sizing: border-box;
+  color: inherit;
+  display: block;
+  font: inherit;
+}
+
+:host *,
+:host *::before,
+:host *::after {
+  box-sizing: inherit;
+}
+
+:host button,
+:host input,
+:host textarea {
+  font: inherit;
+}
