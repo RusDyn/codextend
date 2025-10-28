@@ -218,3 +218,33 @@ describe("archive", () => {
     expect(attemptsByTask.get("2")).toBe(1)
   })
 })
+
+describe("clickArchiveInMenu", () => {
+  beforeEach(() => {
+    document.body.innerHTML = ""
+  })
+
+  it("scopes the archive action lookup to the provided menu root", async () => {
+    const strayButton = document.createElement("button")
+    strayButton.setAttribute("data-testid", "task-archive")
+    strayButton.setAttribute("role", "menuitem")
+    document.body.appendChild(strayButton)
+
+    const menu = document.createElement("div")
+    menu.setAttribute("role", "menu")
+    const targetButton = document.createElement("button")
+    targetButton.setAttribute("data-testid", "task-archive")
+    targetButton.setAttribute("role", "menuitem")
+    menu.appendChild(targetButton)
+    document.body.appendChild(menu)
+
+    const straySpy = vi.spyOn(strayButton, "click")
+    const targetSpy = vi.spyOn(targetButton, "click")
+
+    const clicked = await selectors.clickArchiveInMenu(menu)
+
+    expect(clicked).toBe(true)
+    expect(targetSpy).toHaveBeenCalledTimes(1)
+    expect(straySpy).not.toHaveBeenCalled()
+  })
+})
