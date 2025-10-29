@@ -14,13 +14,43 @@ export interface TaskNode {
   metadata: TaskMetadata
 }
 
+const TASK_ROW_SELECTORS = [
+  '[data-testid="task-row"]',
+  'article[data-task-id]',
+  'div[data-task-id]',
+  'li[data-task-id]',
+  'tr[data-task-id]'
+]
+
+const MENU_TRIGGER_SELECTORS = [
+  '[data-testid="task-row-menu-button"]',
+  '[data-testid="codex-task-menu-button"]',
+  '[data-testid="overflow-menu-trigger"]',
+  '[aria-haspopup="menu"]',
+  'button[aria-label*="More" i]',
+  'button[aria-label*="Action" i]'
+]
+
+const MENU_CONTAINER_SELECTORS = [
+  '[role="menu"]',
+  '[data-testid="task-menu"]',
+  '[data-qa="codex-task-menu"]'
+]
+
+const ARCHIVE_ACTION_SELECTORS = [
+  '[role="menuitem"][data-testid="task-archive"]',
+  '[data-testid="archive-task"]',
+  '[role="menuitem"][data-qa="archive-task"]',
+  '[role="menuitem"][data-action="archive"]'
+]
+
 export const SELECTORS = {
-  taskRow: '[data-testid="task-row"]',
-  taskTitle: '[data-testid="task-title"], [role="heading"]',
-  taskTag: '[data-testid="task-tag"]',
-  menuTrigger: '[data-testid="task-row-menu-button"], [aria-haspopup="menu"]',
-  menuContainer: '[role="menu"],[data-testid="task-menu"]',
-  archiveAction: '[role="menuitem"][data-testid="task-archive"], [data-testid="archive-task"]'
+  taskRow: TASK_ROW_SELECTORS.join(", "),
+  taskTitle: '[data-testid="task-title"], [data-task-title], [role="heading"]',
+  taskTag: '[data-testid="task-tag"], [data-task-tag], [data-testid="tag"]',
+  menuTrigger: MENU_TRIGGER_SELECTORS.join(", "),
+  menuContainer: MENU_CONTAINER_SELECTORS.join(","),
+  archiveAction: ARCHIVE_ACTION_SELECTORS.join(", ")
 } as const
 
 export function getTaskRows(root: ParentNode = document): HTMLElement[] {
@@ -39,12 +69,37 @@ export function getTaskTags(row: HTMLElement): HTMLElement[] {
   return Array.from(row.querySelectorAll<HTMLElement>(SELECTORS.taskTag))
 }
 
+function readDataAttribute(row: HTMLElement, keys: string[], attributes: string[]): string | undefined {
+  for (const key of keys) {
+    const value = row.dataset[key as keyof DOMStringMap]
+    if (typeof value === "string" && value.length > 0) {
+      return value
+    }
+  }
+
+  for (const attribute of attributes) {
+    const value = row.getAttribute(attribute)
+    if (typeof value === "string" && value.length > 0) {
+      return value
+    }
+  }
+
+  return undefined
+}
+
 export function extractTaskMetadata(row: HTMLElement): TaskMetadata {
-  const { taskId, taskStatus, taskArchived } = row.dataset
+  const id = readDataAttribute(row, ["taskId", "id"], ["data-task-id", "data-id"])
+  const status = readDataAttribute(row, ["taskStatus", "status"], ["data-task-status", "data-status"])
+  const archivedRaw = readDataAttribute(
+    row,
+    ["taskArchived", "archived"],
+    ["data-task-archived", "data-archived"]
+  )
+
   return {
-    id: taskId,
-    status: taskStatus,
-    archived: taskArchived ? taskArchived === "true" : undefined
+    id,
+    status,
+    archived: typeof archivedRaw === "string" ? archivedRaw === "true" : undefined
   }
 }
 
