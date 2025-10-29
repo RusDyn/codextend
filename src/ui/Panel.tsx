@@ -61,7 +61,7 @@ function formatMatchTitle(title: string, fallback: string): string {
   return trimmed.length > 0 ? trimmed : fallback
 }
 
-export default function Panel(): JSX.Element {
+export function Panel(): JSX.Element {
   const ready = usePanelStore((state) => state.ready)
   const initialize = usePanelStore((state) => state.initialize)
   const scanning = usePanelStore((state) => state.scanning)
@@ -272,3 +272,5 @@ export default function Panel(): JSX.Element {
     </ToastProvider>
   )
 }
+
+export default Panel

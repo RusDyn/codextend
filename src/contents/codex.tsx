@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client"
 
 import panelStyles from "data-text:../../style.css"
 
-import Panel from "../ui/Panel"
+import { Panel } from "../ui/Panel"
 import { usePanelStore } from "../ui/panelStore"
 import {
   loadPanelPreferences,
