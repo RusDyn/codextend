@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import * as React from "react"
 
 import "./Panel.css"
 import { Badge } from "../components/ui/badge"
@@ -61,7 +61,7 @@ function formatMatchTitle(title: string, fallback: string): string {
   return trimmed.length > 0 ? trimmed : fallback
 }
 
-export function Panel(): JSX.Element {
+export function Panel(): React.JSX.Element {
   const ready = usePanelStore((state) => state.ready)
   const initialize = usePanelStore((state) => state.initialize)
   const scanning = usePanelStore((state) => state.scanning)
@@ -76,17 +76,17 @@ export function Panel(): JSX.Element {
   const confirmArchive = usePanelStore((state) => state.confirmArchive)
   const dismissToast = usePanelStore((state) => state.dismissToast)
 
-  const scanButtonRef = useRef<HTMLButtonElement>(null)
-  const archiveButtonRef = useRef<HTMLButtonElement>(null)
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
-  const previousScanning = useRef(scanning)
-  const previousArchiving = useRef(archiving)
+  const scanButtonRef = React.useRef<HTMLButtonElement>(null)
+  const archiveButtonRef = React.useRef<HTMLButtonElement>(null)
+  const confirmButtonRef = React.useRef<HTMLButtonElement>(null)
+  const previousScanning = React.useRef(scanning)
+  const previousArchiving = React.useRef(archiving)
 
-  useEffect(() => {
+  React.useEffect(() => {
     initialize()
   }, [initialize])
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (previousScanning.current && !scanning) {
       if (matches.length > 0) {
         archiveButtonRef.current?.focus()
@@ -97,14 +97,14 @@ export function Panel(): JSX.Element {
     previousScanning.current = scanning
   }, [scanning, matches.length])
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (previousArchiving.current && !archiving) {
       scanButtonRef.current?.focus()
     }
     previousArchiving.current = archiving
   }, [archiving])
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!confirmVisible) {
       return
     }

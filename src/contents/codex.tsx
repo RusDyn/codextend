@@ -1,5 +1,4 @@
-import type { PointerEvent as ReactPointerEvent } from "react"
-import { useEffect, useRef, useState } from "react"
+import * as React from "react"
 import { createRoot, type Root } from "react-dom/client"
 
 import panelStyles from "data-text:../../style.css"
@@ -95,23 +94,23 @@ interface PanelContainerProps {
   onWidthCommit: (width: number) => void
 }
 
-function PanelContainer({ initialWidth, onWidthChange, onWidthCommit }: PanelContainerProps): JSX.Element {
-  const [width, setWidth] = useState(() => clamp(initialWidth, MIN_PANEL_WIDTH, MAX_PANEL_WIDTH))
-  const widthRef = useRef(width)
-  const pointerIdRef = useRef<number | null>(null)
-  const handleRef = useRef<HTMLDivElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const draggingRef = useRef(false)
-  const moveListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
-  const upListenerRef = useRef<((event: PointerEvent) => void) | null>(null)
-  const [dragging, setDragging] = useState(false)
+function PanelContainer({ initialWidth, onWidthChange, onWidthCommit }: PanelContainerProps): React.JSX.Element {
+  const [width, setWidth] = React.useState(() => clamp(initialWidth, MIN_PANEL_WIDTH, MAX_PANEL_WIDTH))
+  const widthRef = React.useRef(width)
+  const pointerIdRef = React.useRef<number | null>(null)
+  const handleRef = React.useRef<HTMLDivElement>(null)
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const draggingRef = React.useRef(false)
+  const moveListenerRef = React.useRef<((event: PointerEvent) => void) | null>(null)
+  const upListenerRef = React.useRef<((event: PointerEvent) => void) | null>(null)
+  const [dragging, setDragging] = React.useState(false)
 
-  useEffect(() => {
+  React.useEffect(() => {
     widthRef.current = width
     onWidthChange(width)
   }, [width, onWidthChange])
 
-  useEffect(() => {
+  React.useEffect(() => {
     return () => {
       onWidthChange(0)
       const moveListener = moveListenerRef.current
@@ -127,7 +126,7 @@ function PanelContainer({ initialWidth, onWidthChange, onWidthCommit }: PanelCon
     }
   }, [onWidthChange])
 
-  useEffect(() => {
+  React.useEffect(() => {
     const container = containerRef.current
     if (!container) {
       return
@@ -152,7 +151,7 @@ function PanelContainer({ initialWidth, onWidthChange, onWidthCommit }: PanelCon
     }
   }, [])
 
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
       return
     }

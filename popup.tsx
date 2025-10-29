@@ -1,8 +1,8 @@
 import "./style.css"
-import { useState } from "react"
+import * as React from "react"
 
 function IndexPopup() {
-  const [note, setNote] = useState("")
+  const [note, setNote] = React.useState("")
 
   return (
     <div className="min-h-[20rem] w-80 space-y-4 bg-slate-950 p-6 text-white">
