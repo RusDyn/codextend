@@ -14,13 +14,18 @@ export interface TaskNode {
   metadata: TaskMetadata
 }
 
-const TASK_ROW_SELECTORS = [
+const TASK_ROW_CONTAINER_SELECTORS = [
   '[data-testid="task-row"]',
   'article[data-task-id]',
   'div[data-task-id]',
   'li[data-task-id]',
-  'tr[data-task-id]'
+  'tr[data-task-id]',
+  'div.task-row-container'
 ]
+
+const TASK_LINK_SELECTOR = 'a[data-discover][href^="/codex/tasks/"]'
+
+const TASK_ROW_SELECTORS = [...TASK_ROW_CONTAINER_SELECTORS, TASK_LINK_SELECTOR]
 
 const MENU_TRIGGER_SELECTORS = [
   '[data-testid="task-row-menu-button"]',
@@ -28,7 +33,8 @@ const MENU_TRIGGER_SELECTORS = [
   '[data-testid="overflow-menu-trigger"]',
   '[aria-haspopup="menu"]',
   'button[aria-label*="More" i]',
-  'button[aria-label*="Action" i]'
+  'button[aria-label*="Action" i]',
+  '[role="button"][data-state]'
 ]
 
 const MENU_CONTAINER_SELECTORS = [
@@ -53,16 +59,56 @@ export const SELECTORS = {
   archiveAction: ARCHIVE_ACTION_SELECTORS.join(", ")
 } as const
 
+const TASK_ROW_CONTAINER_SELECTOR = TASK_ROW_CONTAINER_SELECTORS.join(", ")
+
 export function getTaskRows(root: ParentNode = document): HTMLElement[] {
+  const seen = new Set<HTMLElement>()
+
   return Array.from(root.querySelectorAll<HTMLElement>(SELECTORS.taskRow))
+    .map((row) => {
+      if (row.matches(TASK_LINK_SELECTOR)) {
+        const container = row.closest<HTMLElement>(TASK_ROW_CONTAINER_SELECTOR)
+        if (container) {
+          return container
+        }
+      }
+      return row
+    })
+    .filter((row) => {
+      if (seen.has(row)) {
+        return false
+      }
+      seen.add(row)
+      return true
+    })
 }
 
 export function getTaskTitle(row: HTMLElement): HTMLElement | null {
   const title = row.querySelector<HTMLElement>(SELECTORS.taskTitle)
-  if (!title) {
-    console.warn("Unable to locate task title for row", row)
+  if (title) {
+    return title
   }
-  return title
+
+  const link = row.matches('a[href^="/codex/tasks/"]')
+    ? (row as HTMLAnchorElement)
+    : row.querySelector<HTMLAnchorElement>('a[href^="/codex/tasks/"]')
+
+  if (!link) {
+    console.warn("Unable to locate task title for row", row)
+    return null
+  }
+
+  const fontMedium = link.querySelector<HTMLElement>('[class*="font-medium"]')
+  if (fontMedium) {
+    return fontMedium
+  }
+
+  const candidate = link.querySelector<HTMLElement>('span, div, p, h1, h2, h3, h4, h5, h6')
+  if (candidate) {
+    return candidate
+  }
+
+  return link
 }
 
 export function getTaskTags(row: HTMLElement): HTMLElement[] {
@@ -88,13 +134,27 @@ function readDataAttribute(row: HTMLElement, keys: string[], attributes: string[
 }
 
 export function extractTaskMetadata(row: HTMLElement): TaskMetadata {
-  const id = readDataAttribute(row, ["taskId", "id"], ["data-task-id", "data-id"])
+  let id = readDataAttribute(row, ["taskId", "id"], ["data-task-id", "data-id"])
   const status = readDataAttribute(row, ["taskStatus", "status"], ["data-task-status", "data-status"])
   const archivedRaw = readDataAttribute(
     row,
     ["taskArchived", "archived"],
     ["data-task-archived", "data-archived"]
   )
+
+  if (!id) {
+    const link = row.matches('a[href^="/codex/tasks/"]')
+      ? (row as HTMLAnchorElement)
+      : row.querySelector<HTMLAnchorElement>('a[href^="/codex/tasks/"]')
+
+    const href = link?.getAttribute("href") ?? undefined
+    if (href) {
+      const match = href.match(/task_[^/?#]+/)
+      if (match) {
+        id = match[0]
+      }
+    }
+  }
 
   return {
     id,
