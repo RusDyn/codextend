@@ -14,22 +14,35 @@ export interface TaskNode {
   metadata: TaskMetadata
 }
 
-const TASK_ROW_SELECTORS = [
+const TASK_ROW_CONTAINER_SELECTORS = [
   '[data-testid="task-row"]',
   'article[data-task-id]',
   'div[data-task-id]',
   'li[data-task-id]',
-  'tr[data-task-id]'
+  'tr[data-task-id]',
+  'div.task-row-container'
 ]
 
-const MENU_TRIGGER_SELECTORS = [
+const TASK_LINK_SELECTOR = 'a[data-discover][href^="/codex/tasks/"]'
+
+const TASK_ROW_SELECTORS = [...TASK_ROW_CONTAINER_SELECTORS, TASK_LINK_SELECTOR]
+
+const MENU_TRIGGER_PRIMARY_SELECTORS = [
   '[data-testid="task-row-menu-button"]',
   '[data-testid="codex-task-menu-button"]',
   '[data-testid="overflow-menu-trigger"]',
   '[aria-haspopup="menu"]',
   'button[aria-label*="More" i]',
-  'button[aria-label*="Action" i]'
-]
+  'button[aria-label*="Action" i]',
+  '[role="button"][data-state][data-part="trigger"]',
+  '[role="button"][data-state][data-radix-collection-item]'
+] as const
+
+const MENU_TRIGGER_FALLBACK_SELECTOR = '[role="button"][data-state]'
+
+const MENU_TRIGGER_KEYWORD_PATTERN = /\b(menu|more|overflow|options?|actions?)\b/i
+
+const MENU_TRIGGER_SELECTORS = [...MENU_TRIGGER_PRIMARY_SELECTORS, MENU_TRIGGER_FALLBACK_SELECTOR] as const
 
 const MENU_CONTAINER_SELECTORS = [
   '[role="menu"]',
@@ -53,16 +66,56 @@ export const SELECTORS = {
   archiveAction: ARCHIVE_ACTION_SELECTORS.join(", ")
 } as const
 
+const TASK_ROW_CONTAINER_SELECTOR = TASK_ROW_CONTAINER_SELECTORS.join(", ")
+
 export function getTaskRows(root: ParentNode = document): HTMLElement[] {
+  const seen = new Set<HTMLElement>()
+
   return Array.from(root.querySelectorAll<HTMLElement>(SELECTORS.taskRow))
+    .map((row) => {
+      if (row.matches(TASK_LINK_SELECTOR)) {
+        const container = row.closest<HTMLElement>(TASK_ROW_CONTAINER_SELECTOR)
+        if (container) {
+          return container
+        }
+      }
+      return row
+    })
+    .filter((row) => {
+      if (seen.has(row)) {
+        return false
+      }
+      seen.add(row)
+      return true
+    })
 }
 
 export function getTaskTitle(row: HTMLElement): HTMLElement | null {
   const title = row.querySelector<HTMLElement>(SELECTORS.taskTitle)
-  if (!title) {
-    console.warn("Unable to locate task title for row", row)
+  if (title) {
+    return title
   }
-  return title
+
+  const link = row.matches('a[href^="/codex/tasks/"]')
+    ? (row as HTMLAnchorElement)
+    : row.querySelector<HTMLAnchorElement>('a[href^="/codex/tasks/"]')
+
+  if (!link) {
+    console.warn("Unable to locate task title for row", row)
+    return null
+  }
+
+  const fontMedium = link.querySelector<HTMLElement>('[class*="font-medium"]')
+  if (fontMedium) {
+    return fontMedium
+  }
+
+  const candidate = link.querySelector<HTMLElement>('span, div, p, h1, h2, h3, h4, h5, h6')
+  if (candidate) {
+    return candidate
+  }
+
+  return link
 }
 
 export function getTaskTags(row: HTMLElement): HTMLElement[] {
@@ -88,13 +141,27 @@ function readDataAttribute(row: HTMLElement, keys: string[], attributes: string[
 }
 
 export function extractTaskMetadata(row: HTMLElement): TaskMetadata {
-  const id = readDataAttribute(row, ["taskId", "id"], ["data-task-id", "data-id"])
+  let id = readDataAttribute(row, ["taskId", "id"], ["data-task-id", "data-id"])
   const status = readDataAttribute(row, ["taskStatus", "status"], ["data-task-status", "data-status"])
   const archivedRaw = readDataAttribute(
     row,
     ["taskArchived", "archived"],
     ["data-task-archived", "data-archived"]
   )
+
+  if (!id) {
+    const link = row.matches('a[href^="/codex/tasks/"]')
+      ? (row as HTMLAnchorElement)
+      : row.querySelector<HTMLAnchorElement>('a[href^="/codex/tasks/"]')
+
+    const href = link?.getAttribute("href") ?? undefined
+    if (href) {
+      const match = href.match(/task_[^/?#]+/)
+      if (match) {
+        id = match[0]
+      }
+    }
+  }
 
   return {
     id,
@@ -108,8 +175,83 @@ export interface OpenRowMenuOptions extends Partial<WaitForElementOptions> {
   menuSelector?: string
 }
 
+function hasMenuKeyword(value: string | null | undefined): boolean {
+  if (!value) {
+    return false
+  }
+
+  return MENU_TRIGGER_KEYWORD_PATTERN.test(value)
+}
+
+function isLikelyMenuTrigger(element: HTMLElement): boolean {
+  const hasPopup = element.getAttribute("aria-haspopup")
+  if (hasPopup) {
+    const normalized = hasPopup.toLowerCase()
+    if (normalized === "menu" || normalized === "true") {
+      return true
+    }
+  }
+
+  const labelledBy = element.getAttribute("aria-labelledby")
+  if (labelledBy) {
+    const labelElement = element.ownerDocument?.getElementById(labelledBy)
+    if (labelElement && hasMenuKeyword(labelElement.textContent)) {
+      return true
+    }
+  }
+
+  const attributesToCheck = [
+    element.getAttribute("aria-label"),
+    element.getAttribute("title"),
+    element.getAttribute("data-testid"),
+    element.getAttribute("data-qa"),
+    element.getAttribute("data-track"),
+    element.textContent
+  ]
+
+  return attributesToCheck.some(hasMenuKeyword)
+}
+
+function findMenuTrigger(row: HTMLElement): HTMLElement | null {
+  for (const selector of MENU_TRIGGER_PRIMARY_SELECTORS) {
+    const candidate = row.querySelector<HTMLElement>(selector)
+    if (candidate) {
+      return candidate
+    }
+  }
+
+  const fallbackCandidates = Array.from(
+    row.querySelectorAll<HTMLElement>(MENU_TRIGGER_FALLBACK_SELECTOR)
+  )
+
+  if (fallbackCandidates.length === 0) {
+    return null
+  }
+
+  const verifiedCandidates = fallbackCandidates.filter(isLikelyMenuTrigger)
+
+  if (verifiedCandidates.length === 0) {
+    return null
+  }
+
+  const iconOnlyCandidates = verifiedCandidates.filter((element) => {
+    const content = element.textContent?.trim() ?? ""
+    return content.length === 0
+  })
+
+  const lastIconOnly = iconOnlyCandidates.length > 0
+    ? iconOnlyCandidates[iconOnlyCandidates.length - 1]
+    : null
+
+  if (lastIconOnly) {
+    return lastIconOnly
+  }
+
+  return verifiedCandidates[verifiedCandidates.length - 1] ?? null
+}
+
 export async function openRowMenu(row: HTMLElement, options: OpenRowMenuOptions = {}): Promise<HTMLElement | null> {
-  const trigger = row.querySelector<HTMLElement>(SELECTORS.menuTrigger)
+  const trigger = findMenuTrigger(row)
   if (!trigger) {
     console.warn("Task row menu trigger not found", row)
     return null
@@ -158,7 +300,7 @@ export function createTaskNode(row: HTMLElement): TaskNode {
     row,
     title: getTaskTitle(row),
     tags: getTaskTags(row),
-    menuTrigger: row.querySelector<HTMLElement>(SELECTORS.menuTrigger),
+    menuTrigger: findMenuTrigger(row),
     metadata: extractTaskMetadata(row)
   }
 }
