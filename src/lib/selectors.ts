@@ -27,15 +27,20 @@ const TASK_LINK_SELECTOR = 'a[data-discover][href^="/codex/tasks/"]'
 
 const TASK_ROW_SELECTORS = [...TASK_ROW_CONTAINER_SELECTORS, TASK_LINK_SELECTOR]
 
-const MENU_TRIGGER_SELECTORS = [
+const MENU_TRIGGER_PRIMARY_SELECTORS = [
   '[data-testid="task-row-menu-button"]',
   '[data-testid="codex-task-menu-button"]',
   '[data-testid="overflow-menu-trigger"]',
   '[aria-haspopup="menu"]',
   'button[aria-label*="More" i]',
   'button[aria-label*="Action" i]',
-  '[role="button"][data-state]'
-]
+  '[role="button"][data-state][data-part="trigger"]',
+  '[role="button"][data-state][data-radix-collection-item]'
+] as const
+
+const MENU_TRIGGER_FALLBACK_SELECTOR = '[role="button"][data-state]'
+
+const MENU_TRIGGER_SELECTORS = [...MENU_TRIGGER_PRIMARY_SELECTORS, MENU_TRIGGER_FALLBACK_SELECTOR] as const
 
 const MENU_CONTAINER_SELECTORS = [
   '[role="menu"]',
@@ -168,8 +173,40 @@ export interface OpenRowMenuOptions extends Partial<WaitForElementOptions> {
   menuSelector?: string
 }
 
+function findMenuTrigger(row: HTMLElement): HTMLElement | null {
+  for (const selector of MENU_TRIGGER_PRIMARY_SELECTORS) {
+    const candidate = row.querySelector<HTMLElement>(selector)
+    if (candidate) {
+      return candidate
+    }
+  }
+
+  const fallbackCandidates = Array.from(
+    row.querySelectorAll<HTMLElement>(MENU_TRIGGER_FALLBACK_SELECTOR)
+  )
+
+  if (fallbackCandidates.length === 0) {
+    return null
+  }
+
+  const iconOnlyCandidates = fallbackCandidates.filter((element) => {
+    const content = element.textContent?.trim() ?? ""
+    return content.length === 0
+  })
+
+  const lastIconOnly = iconOnlyCandidates.length > 0
+    ? iconOnlyCandidates[iconOnlyCandidates.length - 1]
+    : null
+
+  if (lastIconOnly) {
+    return lastIconOnly
+  }
+
+  return fallbackCandidates[fallbackCandidates.length - 1] ?? null
+}
+
 export async function openRowMenu(row: HTMLElement, options: OpenRowMenuOptions = {}): Promise<HTMLElement | null> {
-  const trigger = row.querySelector<HTMLElement>(SELECTORS.menuTrigger)
+  const trigger = findMenuTrigger(row)
   if (!trigger) {
     console.warn("Task row menu trigger not found", row)
     return null
@@ -218,7 +255,7 @@ export function createTaskNode(row: HTMLElement): TaskNode {
     row,
     title: getTaskTitle(row),
     tags: getTaskTags(row),
-    menuTrigger: row.querySelector<HTMLElement>(SELECTORS.menuTrigger),
+    menuTrigger: findMenuTrigger(row),
     metadata: extractTaskMetadata(row)
   }
 }
