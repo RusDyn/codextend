@@ -40,6 +40,8 @@ const MENU_TRIGGER_PRIMARY_SELECTORS = [
 
 const MENU_TRIGGER_FALLBACK_SELECTOR = '[role="button"][data-state]'
 
+const MENU_TRIGGER_KEYWORD_PATTERN = /\b(menu|more|overflow|options?|actions?)\b/i
+
 const MENU_TRIGGER_SELECTORS = [...MENU_TRIGGER_PRIMARY_SELECTORS, MENU_TRIGGER_FALLBACK_SELECTOR] as const
 
 const MENU_CONTAINER_SELECTORS = [
@@ -173,6 +175,43 @@ export interface OpenRowMenuOptions extends Partial<WaitForElementOptions> {
   menuSelector?: string
 }
 
+function hasMenuKeyword(value: string | null | undefined): boolean {
+  if (!value) {
+    return false
+  }
+
+  return MENU_TRIGGER_KEYWORD_PATTERN.test(value)
+}
+
+function isLikelyMenuTrigger(element: HTMLElement): boolean {
+  const hasPopup = element.getAttribute("aria-haspopup")
+  if (hasPopup) {
+    const normalized = hasPopup.toLowerCase()
+    if (normalized === "menu" || normalized === "true") {
+      return true
+    }
+  }
+
+  const labelledBy = element.getAttribute("aria-labelledby")
+  if (labelledBy) {
+    const labelElement = element.ownerDocument?.getElementById(labelledBy)
+    if (labelElement && hasMenuKeyword(labelElement.textContent)) {
+      return true
+    }
+  }
+
+  const attributesToCheck = [
+    element.getAttribute("aria-label"),
+    element.getAttribute("title"),
+    element.getAttribute("data-testid"),
+    element.getAttribute("data-qa"),
+    element.getAttribute("data-track"),
+    element.textContent
+  ]
+
+  return attributesToCheck.some(hasMenuKeyword)
+}
+
 function findMenuTrigger(row: HTMLElement): HTMLElement | null {
   for (const selector of MENU_TRIGGER_PRIMARY_SELECTORS) {
     const candidate = row.querySelector<HTMLElement>(selector)
@@ -189,7 +228,13 @@ function findMenuTrigger(row: HTMLElement): HTMLElement | null {
     return null
   }
 
-  const iconOnlyCandidates = fallbackCandidates.filter((element) => {
+  const verifiedCandidates = fallbackCandidates.filter(isLikelyMenuTrigger)
+
+  if (verifiedCandidates.length === 0) {
+    return null
+  }
+
+  const iconOnlyCandidates = verifiedCandidates.filter((element) => {
     const content = element.textContent?.trim() ?? ""
     return content.length === 0
   })
@@ -202,7 +247,7 @@ function findMenuTrigger(row: HTMLElement): HTMLElement | null {
     return lastIconOnly
   }
 
-  return fallbackCandidates[fallbackCandidates.length - 1] ?? null
+  return verifiedCandidates[verifiedCandidates.length - 1] ?? null
 }
 
 export async function openRowMenu(row: HTMLElement, options: OpenRowMenuOptions = {}): Promise<HTMLElement | null> {
